@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+
+key = ARGV[0]
+file_name = ARGV[1]
+
+loaded_file = YAML.load_file(file_name)
+
+path = key.split(".").reverse
+result = loaded_file
+found = false
+
+while !path.empty? do
+  key = path.pop
+
+  if result.has_key? key
+    result = result[key]
+    found = true
+  else
+    break
+  end
+end
+
+if found
+  puts "#{file_name}:#{result}"
+else 
+  puts "#{file_name}"
+end
