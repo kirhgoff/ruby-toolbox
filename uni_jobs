@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+
+require 'csv'
+
+filename = ARGV[0]
+new_filename = ARGV[1]
+
+unique_records = {}
+
+CSV.foreach(filename, :headers => true) do |row|
+  record = row.to_hash
+  # puts "Record: #{record}"
+  unique_records[record["URL"]] = record
+end
+
+# puts "========================="
+# puts unique_records
+# puts "========================="
+
+row_id = 0
+
+CSV.open(new_filename, 'w') do |csv|
+  unique_records.each do |key,record|
+    row_id += 1
+    if row_id == 1
+      csv << record.keys
+    else
+      csv << record.values
+    end
+  end
+end
+
+

@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+
+require 'dotenv/load'
+require 'rest-client'
+require 'json'
+
+def query(page)
+  "https://api.newrelic.com/v2/alerts_incidents.json?page=#{page}"
+end  
+
+def to_date(timestamp)
+  Time.at(timestamp/1000).strftime('%Y-%m-%d')
+end
+
+puts "id; date"
+page = 1
+api_key=ENV['NEW_RELIC_API_KEY']
+while true do
+  response = RestClient.get(query(page), headers={ 'X-Api-Key': api_key })
+  if response.code != 200 then
+    break
+  end
+
+  json = JSON.parse(response.body)
+  json["incidents"].each do |incident|
+    id = incident["id"]
+    datetime = to_date(incident["opened_at"])
+    puts "#{id}; #{datetime}"
+  end
+  page = page + 1
+end
+
+

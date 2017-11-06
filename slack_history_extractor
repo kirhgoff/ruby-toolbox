@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'dotenv/load'
+require 'slack-ruby-client'
+
+def to_line(item)
+  time = Time.at(item['ts'].to_f)
+  attachment = item['attachments'][0]
+  title = attachment['title'].split(':')
+  color = attachment['color'] || ''
+  [
+    time.strftime('%Y-%m-%d'),
+    time.strftime('%H:%M:%S'),
+    title[1] || '', #title
+    title[0], # status
+    color
+  ]
+end
+
+def query(client, params)
+  oldest = Time.now.to_f
+  results = client.channels_history(params)['messages']
+  results.each do |result| 
+    # puts result.inspect
+    if result['bot_id'] == 'B1SV3NSMP' and result['attachments'][0]['title'] != 'Datadog Event' then
+      current_time = result['ts'].to_f
+      oldest = current_time if oldest > current_time
+      puts to_line(result).join('; ')
+    end
+  end
+  # Save to file 
+  File.open("#{oldest.to_s}.json","w") do |f|
+    f.write(JSON.pretty_generate(results))
+  end
+  oldest
+end
+
+# ------------ Main ------------------
+Slack.configure do |config|
+  config.token = ENV['SLACK_TOKEN']
+end
+client = Slack::Web::Client.new
+client.auth_test
+
+range = (Time.now.to_datetime << 2).to_time.to_f
+oldest = Time.now.to_f
+
+puts 'date;time;category;status;color'
+loop do
+  oldest = query(client, {
+    channel: '#production_alerts', 
+    latest: oldest
+  })
+  # puts "================oldest: #{oldest} as #{Time.at(oldest)}"
+  # puts "================range : #{range} as #{Time.at(range)}"
+  break if oldest <= range
+end 
+
+
+
