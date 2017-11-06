@@ -5,25 +5,30 @@ require 'yaml'
 key = ARGV[0]
 file_name = ARGV[1]
 
-loaded_file = YAML.load_file(file_name)
+begin
+  loaded_file = YAML.load_file(file_name)
 
-path = key.split(".").reverse
-result = loaded_file
-found = false
+  path = key.split(".").reverse
+  result = loaded_file
+  found = false
 
-while !path.empty? do
-  key = path.pop
+  while !path.empty? do
+    key = path.pop
 
-  if result.has_key? key
-    result = result[key]
-    found = true
-  else
-    break
+    if result.has_key? key
+      result = result[key]
+      found = true if path.empty?
+    else
+      break
+    end
   end
+
+  if found
+    puts "#{file_name}: #{result}"
+  else 
+    puts "#{file_name}:"
+  end
+rescue Exception => error
+  puts "#{file_name}: #{error.message}"
 end
 
-if found
-  puts "#{file_name}:#{result}"
-else 
-  puts "#{file_name}"
-end
