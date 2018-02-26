@@ -12,7 +12,8 @@ def to_line(item)
   [
     time.strftime('%Y-%m-%d'),
     time.strftime('%H:%M:%S'),
-    title[1] || '', #title
+    title[1] || '', # title
+    title[2] || '', # details
     title[0], # status
     color
   ]
@@ -46,7 +47,7 @@ client.auth_test
 range = (Time.now.to_datetime << 2).to_time.to_f
 oldest = Time.now.to_f
 
-puts 'date;time;category;status;color'
+puts 'date;time;category;box;status;color'
 loop do
   oldest = query(client, {
     channel: '#production_alerts', 
