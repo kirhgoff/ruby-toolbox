@@ -4,22 +4,24 @@ require 'json'
 require 'rack'
 
 # TODO: 
-# check why vn/th/id job details is on English
+# add th/id job details is on English
 
 # https://au.jora.com/job/Storeperson-1670b266ad85c29483afdf08c6bba41e
-JOB_DETAILS=/(?:http|https):\/\/(..)\.jora\.com\/(?:job|empleo|emploi|emprego)\/(?:.*?)([a-z0-9]+)(?:\?|$|#)/
+JOB_DETAILS=/(?:http|https):\/\/(..)\.jora\.com\/(?:job|emploi|emprego|empleo|%E0%B8%87%E0%B8%B2%E0%B8%99|งาน|lowongan)\/(?:.*?)([a-z0-9]+)(?:\?|$|#)/
 
 # https://au.jora.com/jobs
-ALL_JOBS=/(?:http|https):\/\/(..)\.jora\.com\/(?:jobs|empleos|emplois|empregos)(?:\?|$|#)/
+ALL_JOBS=/(?:http|https):\/\/(..)\.jora\.com\/(?:jobs|emplois|empregos|empleos|%E0%B8%87%E0%B8%B2%E0%B8%99|งาน|lowongankerja)(?:\?|$|#)/
 
 # https://au.jora.com/developer-jobs
-KEYWORD_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(.*?)-(?:jobs|empleos|emplois|empregos)(?:\?|$|#)/
+EN_FR_KEYWORD_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(.*?)-(?:jobs|emplois)(?:\?|$|#)/
+PT_ES_TH_ID_KEYWORD_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(?:empregos-de|empleos-de|%E0%B8%87%E0%B8%B2%E0%B8%99|lowongan)-(.*?)(?:\?|$|#)/
 
 # https://au.jora.com/jobs-in-melbourne
-LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(?:jobs-in|empregos-em|emplois-de|empregos-em)-(.*?)(?:\?|$|#)/
+LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(?:jobs-in|emplois-de|empregos-em|empleos-en|%E0%B8%87%E0%B8%B2%E0%B8%99-%E0%B9%83%E0%B8%99|งาน-ใน|lowongan-di)-(.*?)(?:\?|$|#)/
 
 # https://au.jora.com/developer-jobs-in-melbourne
-KEYWORD_LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(.*?)-(?:jobs-in|empregos-em|emplois-de|empregos-em)-(.*?)(?:\?|$|#)/
+EN_FR_KEYWORD_LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(.*?)-(?:jobs-in|emplois-de)-(.*?)(?:\?|$|#)/
+OTHER_KEYWORD_LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(?:empregos-de|empleos-de|%E0%B8%87%E0%B8%B2%E0%B8%99|งาน|lowongan)-(.*?)-(?:em|en|%E0%B9%83%E0%B8%99|ใน|di)-(.*?)(?:\?|$|#)/
 
 # https://au.jora.com/j?q=developer&l=melbourne
 JKL=/(?:http|https):\/\/(..)\.jora\.com\/j\?(?:.*)q=([^&]+)(?:.*)&l=([^&]+)(?:.*)(?:#|$|&)/
@@ -39,10 +41,12 @@ end
 
 PARSERS = [
   UrlParser.new(JOB_DETAILS, Proc.new { |site_id, id| {site_id: site_id, job_id: id, type: 'job_details'} }),
-  UrlParser.new(ALL_JOBS, Proc.new { |site_id| {site_id: site_id, type: 'all_jobs'} }),
-  UrlParser.new(KEYWORD_SEARCH, Proc.new { |site_id, keywords| {site_id: site_id, keywords: unslug(keywords), type: 'keyword_search'} }),
+  UrlParser.new(ALL_JOBS, Proc.new { |site_id| {site_id: site_id.first, type: 'all_jobs'} }),
+  UrlParser.new(EN_FR_KEYWORD_SEARCH, Proc.new { |site_id, keywords| {site_id: site_id, keywords: unslug(keywords), type: 'keyword_search'} }),
+  UrlParser.new(PT_ES_TH_ID_KEYWORD_SEARCH, Proc.new { |site_id, keywords| {site_id: site_id, keywords: unslug(keywords), type: 'keyword_search'} }),
   UrlParser.new(LOCATION_SEARCH, Proc.new { |site_id, location| {site_id: site_id, location: unslug(location), type: 'location_search'} }),
-  UrlParser.new(KEYWORD_LOCATION_SEARCH, Proc.new { |site_id, keywords, location| {site_id: site_id, keywords: unslug(keywords), location: unslug(location), type: 'keyword_location_search'} }),
+  UrlParser.new(EN_FR_KEYWORD_LOCATION_SEARCH, Proc.new { |site_id, keywords, location| {site_id: site_id, keywords: unslug(keywords), location: unslug(location), type: 'keyword_location_search'} }),
+  UrlParser.new(OTHER_KEYWORD_LOCATION_SEARCH, Proc.new { |site_id, keywords, location| {site_id: site_id, keywords: unslug(keywords), location: unslug(location), type: 'keyword_location_search'} }),
   
   UrlParser.new(JKL, Proc.new { |site_id, keywords, location| {site_id: site_id, keywords: unslug(keywords), location: unslug(location), type: 'jkl'} }),
   UrlParser.new(JLK, Proc.new { |site_id, location, keywords| {site_id: site_id, keywords: unslug(keywords), location: unslug(location), type: 'jlk'} }),
@@ -66,7 +70,6 @@ def parse_line(line)
       result = parser.block.call(match.captures)
       result = also_parse(result, line, SOURCE, :source)
       result = also_parse(result, line, ALERT_ID, :alert_id)
-      #result = result.merge(source: source) if source
       return result.merge(url: line)
     end
   end
