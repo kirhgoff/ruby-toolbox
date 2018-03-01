@@ -4,9 +4,7 @@ require 'json'
 require 'rack'
 
 # TODO: 
-# dont forget about jobstreet.vn
 # check why vn/th/id job details is on English
-# https://au.jora.com/Aged-Care-Traineeship.-jobs-in-Sydney-NSW#email_alert_modal
 
 # https://au.jora.com/job/Storeperson-1670b266ad85c29483afdf08c6bba41e
 JOB_DETAILS=/(?:http|https):\/\/(..)\.jora\.com\/(?:job|empleo|emploi|emprego)\/(?:.*?)([a-z0-9]+)(?:\?|$|#)/
@@ -27,7 +25,8 @@ KEYWORD_LOCATION_SEARCH=/(?:http|https):\/\/(..)\.jora\.com\/(.*?)-(?:jobs-in|em
 JKL=/(?:http|https):\/\/(..)\.jora\.com\/j\?(?:.*)q=([^&]+)(?:.*)&l=([^&]+)(?:.*)(?:#|$|&)/
 JLK=/(?:http|https):\/\/(..)\.jora\.com\/j\?(?:.*)l=([^&]+)(?:.*)&q=([^&]+)(?:.*)(?:#|$|&)/
 
-SOURCE=/(?:&sp|&utm_source)=([^(&|$|#)]*)/
+SOURCE=/(?:\?|&)(?:sp|utm_source)=([^(&|$|#)]*)/
+ALERT_ID=/(?:\?|&)(?:alert_id)=([^(&|$|#)]*)/
 
 class UrlParser
   attr_reader :regex, :block
@@ -53,20 +52,21 @@ def unslug(text)
   Rack::Utils.unescape(text.gsub('-', ' '))
 end 
 
-def parse_source(line)
-  if match = line.match(SOURCE)
-    return match.captures().first
-  else
-    return nil
+def also_parse(result, line, regex, symbol)
+  if match = line.match(regex)
+    return result.merge(symbol => match.captures().first)
   end
+  return result
 end
 
 def parse_line(line)
-  source = parse_source(line)
+#  source = parse_source(line)
   PARSERS.each do |parser|
     if match = line.match(parser.regex)
       result = parser.block.call(match.captures)
-      result = result.merge(source: source) if source
+      result = also_parse(result, line, SOURCE, :source)
+      result = also_parse(result, line, ALERT_ID, :alert_id)
+      #result = result.merge(source: source) if source
       return result.merge(url: line)
     end
   end
