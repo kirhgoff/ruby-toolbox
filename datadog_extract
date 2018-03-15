@@ -5,10 +5,77 @@ require 'rubygems'
 require 'dogapi'
 require 'json'
 
-api_key=ENV['DATADOG_API_KEY']
-app_key=ENV['DATADOG_APP_KEY']
-
-dog = Dogapi::Client.new(api_key, app_key)
-
 # Get all downtimes
-print(dog.get_all_downtimes().to_json)
+# print(dog.get_all_downtimes().to_json)
+
+class DatadogClient
+  DAY_SEC = 3600*24
+
+  def initialize
+    api_key=ENV['DATADOG_API_KEY']
+    app_key=ENV['DATADOG_APP_KEY']
+
+    @dog = Dogapi::Client.new(api_key, app_key)
+  end
+
+  def query
+    yield @dog
+  end
+
+  def extract(data)
+    series_array = data[1]["series"]
+    series_array.map do |row|
+      [ 
+        row["scope"].split(":")[1], # country
+        row["pointlist"].sum(0) { |c| c[1].nil? ? 0 : c[1].to_i} # count
+      ]
+    end.to_h
+  end
+
+  def rollover(start_date)
+    first_time = DateTime.strptime(start_date, '%Y-%m-%d').to_time
+    now = Time.now
+
+    starts = 100.times.lazy.map { |d| first_time + d * DAY_SEC}.take_while {|d| d < now}
+    starts.map do |start_time|
+      data = yield(@dog, start_time, start_time + DAY_SEC)
+      [ to_date(start_time), extract(data) ]
+    end.to_h
+  end
+
+  def to_date(time)
+    time.strftime("%Y-%m-%d") 
+  end
+
+  def to_csv(hash)
+    puts("date, country, count")
+    puts(flatten(hash).join("\n"))
+  end
+
+  def flatten(tree)
+    tree.map do |date, hash|
+      hash.map do |country, count|
+        "#{date}, #{country}, #{count}"
+      end
+    end.flatten
+  end
+end
+
+# Get push notification stats
+query = 'sum:app.push.notification.sent.success{*} by {site_id}.as_count()'
+
+start_date = ARGV[0] || '2018-03-13'
+client = DatadogClient.new
+data = client.rollover(start_date) {|dog, from, to| dog.get_points(query, from, to) }
+client.to_csv(data)
+
+# data = {"2018-03-13"=>{"au"=>54, "br"=>5, "fr"=>7, "id"=>4, "mx"=>3, "th"=>10}, "2018-03-14"=>{"nz"=>44}, "2018-03-15"=>{"au"=>699, "nz"=>73}}
+
+# puts("Result: #{client.flatten(data)}")
+
+
+
+
+
+
+
